@@ -1,5 +1,12 @@
+# Project
+This repository is used to explore the capabilities of YOLOR in detection of small objects. 
+As the main case of study, we use the [Minneapple](https://rsn.umn.edu/projects/orchard-monitoring/minneapple#results) dataset, a segmentation and detection 
+dataset of apples. 
+
 # YOLOR
-implementation of paper - [You Only Learn One Representation: Unified Network for Multiple Tasks](https://arxiv.org/abs/2105.04206)
+This project is based on the "[Scaled-YOLOv4: Scaling Cross Stage Partial Network](https://arxiv.org/abs/2011.08036)" 
+by "[WongKinYiu et al](https://github.com/WongKinYiu/ScaledYOLOv4)". I'm not claiming ownership of the original source code
+in any way.
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/you-only-learn-one-representation-unified/real-time-object-detection-on-coco)](https://paperswithcode.com/sota/real-time-object-detection-on-coco?p=you-only-learn-one-representation-unified)
 
@@ -198,25 +205,18 @@ You will get the results:
 
 ![horses](https://github.com/WongKinYiu/yolor/blob/main/inference/output/horses.jpg)
 
-## Citation
-
-```
-@article{wang2021you,
-  title={You Only Learn One Representation: Unified Network for Multiple Tasks},
-  author={Wang, Chien-Yao and Yeh, I-Hau and Liao, Hong-Yuan Mark},
-  journal={arXiv preprint arXiv:2105.04206},
-  year={2021}
-}
-```
 
 ## Acknowledgements
 
 <details><summary> <b>Expand</b> </summary>
 
+* [WongKinYiu/yolor](https://github.com/WongKinYiu/yolor)
+* [Thomas Brandon/Mish_cuda](https://github.com/thomasbrandon/mish-cuda)
+* [Scaled-YOLOv4: Scaling Cross Stage Partial Network](https://arxiv.org/abs/2011.08036) 
 * [https://github.com/AlexeyAB/darknet](https://github.com/AlexeyAB/darknet)
 * [https://github.com/WongKinYiu/PyTorch_YOLOv4](https://github.com/WongKinYiu/PyTorch_YOLOv4)
-* [https://github.com/WongKinYiu/ScaledYOLOv4](https://github.com/WongKinYiu/ScaledYOLOv4)
 * [https://github.com/ultralytics/yolov3](https://github.com/ultralytics/yolov3)
 * [https://github.com/ultralytics/yolov5](https://github.com/ultralytics/yolov5)
-
+* [Minneapple](https://rsn.umn.edu/projects/orchard-monitoring/minneapple#results)
 </details>
+

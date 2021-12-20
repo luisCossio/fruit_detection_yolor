@@ -1359,37 +1359,3 @@ def flatten_recursive(path='../coco128'):
     create_folder(new_path)
     for file in tqdm(glob.glob(str(Path(path)) + '/**/*.*', recursive=True)):
         shutil.copyfile(file, new_path / Path(file).name)
-
-
-# path = '/home/luis/datasets/wider/dummy_wider/images'
-path = '/home/luis/datasets/minneapple/val/images'
-img_size=1280
-batch_size=3
-augment = True
-hyp = {'lr0': 0.01, 'momentum': 0.937, 'weight_decay': 0.0004921875, 'giou': 0.05,
-         'cls': 0.5, 'cls_pw': 1.0, 'obj': 1.0, 'obj_pw': 1.0, 'iou_t': 0.2,
-         'anchor_t': 4.0, 'fl_gamma': 0.0, 'hsv_h': 0.015, 'hsv_s': 0.7, 'hsv_v': 0.4,
-         'degrees': 0.0, 'translate': 0.00, 'scale': 0.00, 'shear': 0.0, 'perspective': 0.0,
-         'flipud': 0.0, 'fliplr': 0.5, 'mixup': 1.0}
-
-class Namespace:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-#         for key in self.__dict__:
-#             print("field: ",key)
-
-rect = False
-image_weights = False
-cache_images = True
-single_cls = True
-stride = 2
-pad = 0.0
-mosaic = False
-rank=-1
-
-
-dataset1 = LoadImagesAndLabels(path, img_size,batch_size, augment,hyp, rect, image_weights,
-                                  cache_images, single_cls,stride,mosaic = mosaic)
-
-random_index=np.random.randint(len(dataset1))
-img1,img_label1,img_name1,img_shape1 = dataset1[random_index]

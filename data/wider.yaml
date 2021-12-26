@@ -1,0 +1,10 @@
+# train and val datasets (image directory or *.txt file with image paths)
+train: ../datasets/wider/wider_train/images  # 500 img
+val: ../datasets/wider/wider_val/images # 130 img
+test: ../datasets/wider/wider_test/images  # 130 img
+
+# number of classes
+nc: 1
+
+# class names
+names: ['apple']

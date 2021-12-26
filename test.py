@@ -1,15 +1,15 @@
 import argparse
-import glob
+# import glob
 import json
-import os
-from pathlib import Path
+# import os
+# from pathlib import Path
 
-import numpy as np
-import torch
-import yaml
+# import numpy as np
+# import torch
+# import yaml
 from tqdm import tqdm
 
-from utils.google_utils import attempt_load
+# from utils.google_utils import attempt_load
 from utils.datasets import create_dataloader
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, box_iou, \
     non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, clip_coords, set_logging, increment_path
@@ -43,6 +43,7 @@ def test(data,
          save_dir=Path(''),  # for saving images
          save_txt=False,  # for auto-labelling
          save_conf=False,
+         merge=False,
          plots=True,
          log_imgs=0,  # number of logged images
          save_images=False,
@@ -100,7 +101,7 @@ def test(data,
         img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
         _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
         path = data['test'] if opt.task == 'test' else data['val']  # path to val/test images
-        dataloader = create_dataloader(path, imgsz, batch_size, model.stride.max(), opt,
+        dataloader = create_dataloader(path, imgsz, batch_size, 64, opt,
                                        hyp=None, augment=False, cache=False, pad=0.5, rect=rect, mosaic=False)[0]
 
     seen = 0
@@ -137,7 +138,7 @@ def test(data,
 
             # Run NMS
             t = time_synchronized()
-            output = non_max_suppression(inf_out, conf_thres=conf_thres, iou_thres=iou_thres)
+            output = non_max_suppression(inf_out, conf_thres=conf_thres, iou_thres=iou_thres, merge=merge)
             t1 += time_synchronized() - t
 
         # Statistics per image
@@ -307,15 +308,19 @@ if __name__ == '__main__':
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--single-cls', action='store_true', help='treat as single-class dataset')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
+    parser.add_argument('--merge', action='store_true', help='use Merge NMS')
     parser.add_argument('--verbose', action='store_true', help='report mAP by class')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
     parser.add_argument('--save-json', action='store_true', help='save a cocoapi-compatible JSON results file')
+    parser.add_argument('--save-image', action='store_true', help='save results to *.txt')
     parser.add_argument('--project', default='runs/test', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--cfg', type=str, default='cfg/yolor_p6.cfg', help='*.cfg path')
+    parser.add_argument('--cfg', type=str, default='cfg/yolor_p6_single_class.cfg', help='*.cfg path')
     parser.add_argument('--names', type=str, default='data/coco.names', help='*.cfg path')
+    parser.add_argument('--rect', action='store_true', help='Use if prediction want to be done on images in their '
+                                                            'original size without padding (often rectangular)')
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')
     opt.data = check_file(opt.data)  # check file
@@ -332,8 +337,11 @@ if __name__ == '__main__':
              opt.single_cls,
              opt.augment,
              opt.verbose,
+             merge=opt.merge,
              save_txt=opt.save_txt,
              save_conf=opt.save_conf,
+             rect=opt.rect,
+             save_images=opt.save_image
              )
 
     elif opt.task == 'study':  # run over a range of settings and save/plot

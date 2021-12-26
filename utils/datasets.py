@@ -573,7 +573,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment)
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
             labels1 = self.labels[index]
-            labels = None
+            labels = []
             if labels1.size > 0:
                 # Normalized xywh to pixel xyxy format
                 labels = labels1.copy()
@@ -621,7 +621,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
             # Load labels
-            labels = None
+            labels = []
+
             x = self.labels[index]
             if x.size > 0:
                 # Normalized xywh to pixel xyxy format
@@ -630,7 +631,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 labels[:, 2] = ratio[1] * h * (x[:, 2] - x[:, 4] / 2) + pad[1]  # pad height
                 labels[:, 3] = ratio[0] * w * (x[:, 1] + x[:, 3] / 2) + pad[0]
                 labels[:, 4] = ratio[1] * h * (x[:, 2] + x[:, 4] / 2) + pad[1]
-
+            # else:
+            #     print("zero files in: ",self.img_files[index])
 
         else:
             # Load image

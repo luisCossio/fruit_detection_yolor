@@ -58,8 +58,8 @@ def exif_size(img):
 
 
 def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=False, cache=False, pad=0.0, rect=False,
-                      rank=-1, world_size=1, workers=8,mosaic=True):
-# Make sure only the first process in DDP process the dataset first, and the following others can use the cache
+                      rank=-1, world_size=1, workers=8, mosaic=True):
+    # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     with torch_distributed_zero_first(rank):
         dataset = LoadImagesAndLabels(path, imgsz, batch_size,
                                       augment=augment,  # augment images
@@ -85,18 +85,18 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
 
 
 def create_dataloader9(path, imgsz, batch_size, stride, opt, hyp=None, augment=False, cache=False, pad=0.0, rect=False,
-                      rank=-1, world_size=1, workers=8):
+                       rank=-1, world_size=1, workers=8):
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     with torch_distributed_zero_first(rank):
         dataset = LoadImagesAndLabels9(path, imgsz, batch_size,
-                                      augment=augment,  # augment images
-                                      hyp=hyp,  # augmentation hyperparameters
-                                      rect=rect,  # rectangular training
-                                      cache_images=cache,
-                                      single_cls=opt.single_cls,
-                                      stride=int(stride),
-                                      pad=pad,
-                                      rank=rank)
+                                       augment=augment,  # augment images
+                                       hyp=hyp,  # augmentation hyperparameters
+                                       rect=rect,  # rectangular training
+                                       cache_images=cache,
+                                       single_cls=opt.single_cls,
+                                       stride=int(stride),
+                                       pad=pad,
+                                       rank=rank)
 
     batch_size = min(batch_size, len(dataset))
     nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
@@ -357,7 +357,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
 
 class LoadImagesAndLabels(Dataset):  # for training/testing
     def __init__(self, path, img_size=640, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
-                 cache_images=False, single_cls=False, stride=32, pad=0.0, mosaic=True,rank=-1):
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, mosaic=True, rank=-1):
         print("Augmentation method: \n Augmentaion {:d}; Mosaic {:d}; Rect {:d}; ".format(augment, mosaic, rect))
         self.img_size = img_size
         self.augment = augment
@@ -365,8 +365,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.image_weights = image_weights
         self.rect = False if image_weights else rect
         # self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)
-        assert ((mosaic and rect) == False),"Required condition. Rectangular images are not transform into mosaics"
-        self.mosaic = mosaic # load 4 images at a time into a mosaic (only during training)
+        assert ((mosaic and rect) == False), "Required condition. Rectangular images are not transform into mosaics"
+        self.mosaic = mosaic  # load 4 images at a time into a mosaic (only during training)
 
         self.mosaic_border = [-img_size // 2, -img_size // 2]
         self.stride = stride
@@ -415,7 +415,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.label_files = img2label_paths(cache.keys())  # update
 
         n = len(shapes)  # number of images
-        bi = np.floor(np.arange(n) / batch_size).astype(np.int)  # batch index
+        bi = np.floor(np.arange(n) / batch_size).astype(np.int32)  # batch index
         nb = bi[-1] + 1  # number of batches
         self.batch = bi  # batch index of image
         self.n = n
@@ -581,8 +581,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 labels[:, 2] = ratio[1] * h * (labels1[:, 2] - labels1[:, 4] / 2) + pad[1]  # pad height
                 labels[:, 3] = ratio[0] * w * (labels1[:, 1] + labels1[:, 3] / 2) + pad[0]
                 labels[:, 4] = ratio[1] * h * (labels1[:, 2] + labels1[:, 4] / 2) + pad[1]
-
-
+            # else:
+            #     labels = np.array(labels).reshape([-1,5])
 
             # MixUp https://arxiv.org/pdf/1710.09412.pdf
             if random.random() < hyp['mixup']:
@@ -601,7 +601,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                     labels2[:, 2] = ratio2[1] * h * (labels_2[:, 2] - labels_2[:, 4] / 2) + pad[1]  # pad height
                     labels2[:, 3] = ratio2[0] * w * (labels_2[:, 1] + labels_2[:, 3] / 2) + pad[0]
                     labels2[:, 4] = ratio2[1] * h * (labels_2[:, 2] + labels_2[:, 4] / 2) + pad[1]
-                    if labels is None:
+                    if len(labels)==0:
                         labels = labels2.copy()
                     else:
 
@@ -902,13 +902,13 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
         mosaic = self.mosaic and random.random() < hyp['mosaic']
         if mosaic:
             # Load mosaic
-            #img, labels = load_mosaic(self, index)
+            # img, labels = load_mosaic(self, index)
             img, labels = load_mosaic9(self, index)
             shapes = None
 
             # MixUp https://arxiv.org/pdf/1710.09412.pdf
             if random.random() < hyp['mixup']:
-                #img2, labels2 = load_mosaic(self, random.randint(0, len(self.labels) - 1))
+                # img2, labels2 = load_mosaic(self, random.randint(0, len(self.labels) - 1))
                 img2, labels2 = load_mosaic9(self, random.randint(0, len(self.labels) - 1))
                 r = np.random.beta(8.0, 8.0)  # mixup ratio, alpha=beta=8.0
                 img = (img * r + img2 * (1 - r)).astype(np.uint8)

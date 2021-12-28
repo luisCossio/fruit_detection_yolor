@@ -390,6 +390,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
 
             # Save model
             save = (not opt.nosave) or (final_epoch and not opt.evolve)
+            print("save: ", save)
             if save:
                 with open(results_file, 'r') as f:  # create checkpoint
                     ckpt = {'epoch': epoch,
@@ -428,6 +429,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                 #     torch.save(ckpt, wdir / 'epoch_{:03d}.pt'.format(epoch))
 
                 if (epoch>=(epochs-35)):
+                    print("\n saving last epoch {:d}".format(epoch))
                     torch.save(ckpt, wdir / 'last_{:03d}.pt'.format(epoch))
                 # elif epoch >= 420:
                 #     torch.save(ckpt, wdir / 'last_{:03d}.pt'.format(epoch))

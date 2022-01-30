@@ -1354,7 +1354,6 @@ def create_folder(path='./new'):
         shutil.rmtree(path)  # delete output folder
     os.makedirs(path)  # make new output folder
 
-
 def flatten_recursive(path='../coco128'):
     # Flatten a recursive directory by bringing all files to top level
     new_path = Path(path + '_flat')

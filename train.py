@@ -14,6 +14,7 @@ import torch.distributed as dist
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import torch.utils.data
+from models.yolo import Model
 # import yaml
 from torch.cuda import amp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -63,8 +64,10 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
     plots = not opt.evolve  # create plots
     cuda = device.type != 'cpu'
     init_seeds(2 + rank)
+    print("opt data: ",opt.data)
     with open(opt.data) as f:
         data_dict = yaml.load(f, Loader=yaml.FullLoader)  # data dict
+    print("data dict: ",data_dict)
     with torch_distributed_zero_first(rank):
         check_dataset(data_dict)  # check
     train_path = data_dict['train']
@@ -78,10 +81,25 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
         with torch_distributed_zero_first(rank):
             attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location=device)  # load checkpoint
-        model = Darknet(opt.cfg).to(device)  # create
-        state_dict = {k: v for k, v in ckpt['model'].items() if model.state_dict()[k].numel() == v.numel()}
-        model.load_state_dict(state_dict, strict=False)
-        print('Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report
+        if opt.use_model:
+            if hyp.get('anchors'):
+                ckpt['model'].yaml['anchors'] = round(hyp['anchors'])  # force autoanchor
+            model = Model(opt.cfg or ckpt['model'].yaml, ch=3, nc=nc).to(device)  # create
+            exclude = ['anchor'] if opt.cfg or hyp.get('anchors') else []  # exclude keys
+            state_dict = ckpt['model'].float().state_dict()  # to FP32
+            state_dict = intersect_dicts(state_dict, model.state_dict(), exclude=exclude)  # intersect
+            model.load_state_dict(state_dict, strict=False)  # load
+            logger.info(
+                'Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report
+        else:
+            model = Darknet(opt.cfg).to(device)  # create
+            state_dict = {k: v for k, v in ckpt['model'].items() if model.state_dict()[k].numel() == v.numel()}
+            model.load_state_dict(state_dict, strict=False)
+            print('Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report
+
+    elif opt.use_model:
+        model = Model(opt.cfg, ch=3, nc=nc).to(device)  # create
+
     else:
         model = Darknet(opt.cfg).to(device) # create
 
@@ -289,7 +307,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             # Forward
             with amp.autocast(enabled=cuda):
                 pred = model(imgs)  # forward
-                loss, loss_items = compute_loss(pred, targets.to(device), model)  # loss scaled by batch_size
+                loss, loss_items = compute_loss(pred, targets.to(device), model,not opt.use_model)  # loss scaled by batch_size
                 if rank != -1:
                     loss *= opt.world_size  # gradient averaged between devices in DDP mode
 
@@ -346,7 +364,8 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                                                  save_dir=save_dir,
                                                  plots=plots and final_epoch,
                                                  log_imgs=opt.log_imgs if wandb else 0,
-                                                 save_images=opt.save_img_test)
+                                                 save_images=opt.save_img_test,
+                                                 use_darknet=not opt.use_model)
 
             # Write
             with open(results_file, 'a') as f:
@@ -390,7 +409,6 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
 
             # Save model
             save = (not opt.nosave) or (final_epoch and not opt.evolve)
-            print("save: ", save)
             if save:
                 with open(results_file, 'r') as f:  # create checkpoint
                     ckpt = {'epoch': epoch,
@@ -493,7 +511,9 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--save-img-test', action='store_true', help='use torch.optim.Adam() optimizer')
+    parser.add_argument('--save-img-test', action='store_true', help='If True saves images with bounding box '
+                                                                     'predictions.')
+    parser.add_argument('--use-model', action='store_true', help='True to use yolor extra configurations (yolor-e6,d6,etc)')
     opt = parser.parse_args()
 
     # Set DDP variables

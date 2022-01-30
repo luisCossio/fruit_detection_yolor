@@ -9,15 +9,16 @@ import json
 # import yaml
 from tqdm import tqdm
 
-# from utils.google_utils import attempt_load
+
 from utils.datasets import create_dataloader
-from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, box_iou, \
-    non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, clip_coords, set_logging, increment_path
+# from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, box_iou, \
+#     non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, clip_coords, set_logging, increment_path
 from utils.loss import compute_loss
 from utils.metrics import ap_per_class
 from utils.plots import plot_images2, output_to_target
-from utils.torch_utils import select_device, time_synchronized
-
+from utils.torch_utils import select_device, time_synchronized, intersect_dicts
+# from models.experimental import attempt_load_weights
+from models.yolo import Model
 from models.models import *
 
 
@@ -47,8 +48,11 @@ def test(data,
          plots=True,
          log_imgs=0,  # number of logged images
          save_images=False,
-         rect=True):
+         rect=True,
+         use_darknet=True):
     # Initialize/load model and set device
+
+    nc = 1 if single_cls else int(data['nc'])  # number of classes
     training = model is not None
     if training:  # called by train.py
         device = next(model.parameters()).device  # get model device
@@ -63,15 +67,24 @@ def test(data,
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
         # Load model
-        model = Darknet(opt.cfg).to(device)
-
-        # load model
-        try:
+        if use_darknet:
+            model = Darknet(opt.cfg).to(device)
+            # load model
+            try:
+                ckpt = torch.load(weights[0], map_location=device)  # load checkpoint
+                ckpt['model'] = {k: v for k, v in ckpt['model'].items() if model.state_dict()[k].numel() == v.numel()}
+                model.load_state_dict(ckpt['model'], strict=False)
+            except:
+                load_darknet_weights(model, weights[0])
+        else:
+            # model = attempt_load_weights(weights, map_location=device)  # load FP32 model
             ckpt = torch.load(weights[0], map_location=device)  # load checkpoint
-            ckpt['model'] = {k: v for k, v in ckpt['model'].items() if model.state_dict()[k].numel() == v.numel()}
-            model.load_state_dict(ckpt['model'], strict=False)
-        except:
-            load_darknet_weights(model, weights[0])
+            model = Model(opt.cfg, ch=3, nc=nc).to(device)  # create
+            # print("CKPT: ", ckpt['model'])
+            # state_dict = ckpt['model']  # to FP32
+            state_dict = intersect_dicts(ckpt['model'] , model.state_dict())  # intersect
+            model.load_state_dict(state_dict, strict=True)  # load
+
         imgsz = check_img_size(imgsz, s=64)  # check img_size
 
     # Half
@@ -85,7 +98,7 @@ def test(data,
     with open(data) as f:
         data = yaml.load(f, Loader=yaml.FullLoader)  # model dict
     check_dataset(data)  # check
-    nc = 1 if single_cls else int(data['nc'])  # number of classes
+
     iouv = torch.linspace(0.5, 0.95, 10).to(device)  # iou vector for mAP@0.5:0.95
     niou = iouv.numel()
 
@@ -134,7 +147,7 @@ def test(data,
 
             # Compute loss
             if training:  # if model has loss hyperparameters
-                loss += compute_loss([x.float() for x in train_out], targets, model)[1][:3]  # box, obj, cls
+                loss += compute_loss([x.float() for x in train_out], targets, model,use_darknet=use_darknet)[1][:3]  # box, obj, cls
 
             # Run NMS
             t = time_synchronized()
@@ -317,10 +330,12 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/test', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--cfg', type=str, default='cfg/yolor_p6_single_class.cfg', help='*.cfg path')
+    parser.add_argument('--cfg', type=str, default='', help='*.cfg path')
     parser.add_argument('--names', type=str, default='data/coco.names', help='*.cfg path')
     parser.add_argument('--rect', action='store_true', help='Use if prediction want to be done on images in their '
                                                             'original size without padding (often rectangular)')
+
+    parser.add_argument('--use-model', action='store_true', help='True to use yolor extra configurations (yolor-e6,d6,etc)')
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')
     opt.data = check_file(opt.data)  # check file
@@ -341,7 +356,8 @@ if __name__ == '__main__':
              save_txt=opt.save_txt,
              save_conf=opt.save_conf,
              rect=opt.rect,
-             save_images=opt.save_image
+             save_images=opt.save_image,
+             use_darknet=not opt.use_model
              )
 
     elif opt.task == 'study':  # run over a range of settings and save/plot

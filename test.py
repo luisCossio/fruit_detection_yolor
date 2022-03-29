@@ -330,11 +330,10 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/test', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--cfg', type=str, default='', help='*.cfg path')
+    parser.add_argument('--cfg', type=str, default='', help='*.cfg or *.yaml path')
     parser.add_argument('--names', type=str, default='data/coco.names', help='*.cfg path')
     parser.add_argument('--rect', action='store_true', help='Use if prediction want to be done on images in their '
                                                             'original size without padding (often rectangular)')
-
     parser.add_argument('--use-model', action='store_true', help='True to use yolor extra configurations (yolor-e6,d6,etc)')
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')

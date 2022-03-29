@@ -81,7 +81,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
         with torch_distributed_zero_first(rank):
             attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location=device)  # load checkpoint
-        if opt.use_model:
+        if opt.use_all_models:
             if hyp.get('anchors'):
                 ckpt['model'].yaml['anchors'] = round(hyp['anchors'])  # force autoanchor
             model = Model(opt.cfg or ckpt['model'].yaml, ch=3, nc=nc).to(device)  # create
@@ -97,7 +97,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             model.load_state_dict(state_dict, strict=False)
             print('Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report
 
-    elif opt.use_model:
+    elif opt.use_all_models:
         model = Model(opt.cfg, ch=3, nc=nc).to(device)  # create
 
     else:
@@ -307,7 +307,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             # Forward
             with amp.autocast(enabled=cuda):
                 pred = model(imgs)  # forward
-                loss, loss_items = compute_loss(pred, targets.to(device), model,not opt.use_model)  # loss scaled by batch_size
+                loss, loss_items = compute_loss(pred, targets.to(device), model,not opt.use_all_models)  # loss scaled by batch_size
                 if rank != -1:
                     loss *= opt.world_size  # gradient averaged between devices in DDP mode
 
@@ -365,7 +365,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                                                  plots=plots and final_epoch,
                                                  log_imgs=opt.log_imgs if wandb else 0,
                                                  save_images=opt.save_img_test,
-                                                 use_darknet=not opt.use_model)
+                                                 use_darknet=not opt.use_all_models)
 
             # Write
             with open(results_file, 'a') as f:
@@ -513,7 +513,7 @@ if __name__ == '__main__':
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--save-img-test', action='store_true', help='If True saves images with bounding box '
                                                                      'predictions.')
-    parser.add_argument('--use-model', action='store_true', help='True to use yolor extra configurations (yolor-e6,d6,etc)')
+    parser.add_argument('--use-all-models', action='store_true', help='True to use yolor extra configurations (yolor-e6,d6,etc)')
     opt = parser.parse_args()
 
     # Set DDP variables
